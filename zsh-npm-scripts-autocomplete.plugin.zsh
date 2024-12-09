@@ -1,6 +1,12 @@
 local _plugin_path=$0
 local _PWD=`echo $_plugin_path | sed -e 's/\/zsh-npm-scripts-autocomplete\.plugin\.zsh//'`
 __zna_pwd="$_PWD"
+
+__znsaGetDependencies() {
+  local pkgJson="$1"
+  node "$__zna_pwd/getDependencies.js" "$pkgJson" 2>/dev/null
+}
+
 __znsaGetScripts() {
   local pkgJson="$1"
   node "$__zna_pwd/getScripts.js" "$pkgJson" 2>/dev/null
@@ -21,42 +27,74 @@ __znsaArgsLength() {
 }
 
 __znsaYarnRunCompletion() {
-  [[ ! "$(__znsaArgsLength)" = "2" ]] && return
+  # Return if the length of arguments is not 2 or 3
+  local argsLength="$(__znsaArgsLength)"
+  [[ "$argsLength" -ne "2" || "$argsLength" -ne "3" ]] && return
+
+  # Return if package.json is not found
   local pkgJson="$(__znsaFindFile package.json)"
   [[ "$pkgJson" = "" ]] && return
-  local -a options
-  options=(${(f)"$(__znsaGetScripts $pkgJson)"})
-  [[ "$#options" = 0 ]] && return
-  _describe 'values' options
+
+  # Handle `yarn <script>` command
+  if [[ "$argsLength" = "2" ]]; then
+    # Get the scripts
+    local -a options=(${(f)"$(__znsaGetScripts $pkgJson)"})
+    [[ "$#options" = 0 ]] && return
+
+    # Describe the options for autocompletion
+    _describe 'values' options
+    return
+  fi
+
+  # Handle `yarn/pnpm remove/rm <dependency>` command
+  if [[ "$argsLength" = "3" ]]; then
+    # Return if the command is not `remove` or `rm`
+    [[ ! "$words[2]" in "rm" "remove" ]] && return
+
+    # Get the dependencies
+    local -a options=(${(f)"$(__znsaGetDependencies $pkgJson)"})
+    [[ "$#options" = 0 ]] && return
+
+    # Describe the options for autocompletion
+    _describe 'values' options
+    return
+  fi
 }
 
-## to lazy to handler different number of arguments
-## just copy and paste it
 __znsaNpmRunCompletion() {
-  [[ ! "$(__znsaArgsLength)" = "3" ]] && return
+  # Return if the length of arguments is not 3
+  [[ ! "$(__znsaArgsLength)" -ne "3" ]] && return
+
+  # Return if package.json is not found
   local pkgJson="$(__znsaFindFile package.json)"
   [[ "$pkgJson" = "" ]] && return
-  local -a options
-  options=(${(f)"$(__znsaGetScripts $pkgJson)"})
-  [[ "$#options" = 0 ]] && return
-  _describe 'values' options
-}
 
-__znsaHandleYarn() {
-  __znsaYarnRunCompletion
-}
+  # Handle `npm run <script>` command
+  if [[ "$words[2]" == "run" ]]; then
+    # Get the scripts
+    local -a options=(${(f)"$(__znsaGetScripts $pkgJson)"})
+    [[ "$#options" = 0 ]] && return
 
-__znsaHandleNpm(){
-  case "${words[2]}" in
-    run)
-      __znsaNpmRunCompletion
-      ;;
-  esac
+    # Describe the options for autocompletion
+    _describe 'values' options
+    return
+  fi
+
+  # Handle `npm uninstall <dependency>` command
+  if [[ "$words[2]" == "uninstall" ]]; then
+    # Get the dependencies
+    local -a options=(${(f)"$(__znsaGetDependencies $pkgJson)"})
+    [[ "$#options" = 0 ]] && return
+
+    # Describe the options for autocompletion
+    _describe 'values' options
+    return
+  fi
 }
 
 alias nr="npm run"
 compdef __znsaYarnRunCompletion yarn
 compdef __znsaYarnRunCompletion nr
 compdef __znsaYarnRunCompletion pnpm
-compdef __znsaHandleNpm npm
-compdef __znsaHandleNpm bun
+compdef __znsaNpmRunCompletion npm
+compdef __znsaNpmRunCompletion bun

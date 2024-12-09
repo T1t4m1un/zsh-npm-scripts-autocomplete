@@ -1,4 +1,3 @@
-
 const pkg = require(process.argv[2])
 
 const result = Object
