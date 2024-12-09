@@ -29,11 +29,11 @@ __znsaArgsLength() {
 __znsaYarnRunCompletion() {
   # Return if the length of arguments is not 2 or 3
   local argsLength="$(__znsaArgsLength)"
-  [[ "$argsLength" -ne "2" || "$argsLength" -ne "3" ]] && return
+  [[ "$argsLength" -ne "2" && "$argsLength" -ne "3" ]] && return
 
   # Return if package.json is not found
   local pkgJson="$(__znsaFindFile package.json)"
-  [[ "$pkgJson" = "" ]] && return
+  [[ "$pkgJson" == "" ]] && return
 
   # Handle `yarn <script>` command
   if [[ "$argsLength" = "2" ]]; then
@@ -49,7 +49,7 @@ __znsaYarnRunCompletion() {
   # Handle `yarn/pnpm remove/rm <dependency>` command
   if [[ "$argsLength" = "3" ]]; then
     # Return if the command is not `remove` or `rm`
-    [[ ! "$words[2]" in "rm" "remove" ]] && return
+    [[ "${words[2]}" != "rm" && "${words[2]}" != "remove" ]] && return
 
     # Get the dependencies
     local -a options=(${(f)"$(__znsaGetDependencies $pkgJson)"})
@@ -61,40 +61,6 @@ __znsaYarnRunCompletion() {
   fi
 }
 
-__znsaNpmRunCompletion() {
-  # Return if the length of arguments is not 3
-  [[ ! "$(__znsaArgsLength)" -ne "3" ]] && return
-
-  # Return if package.json is not found
-  local pkgJson="$(__znsaFindFile package.json)"
-  [[ "$pkgJson" = "" ]] && return
-
-  # Handle `npm run <script>` command
-  if [[ "$words[2]" == "run" ]]; then
-    # Get the scripts
-    local -a options=(${(f)"$(__znsaGetScripts $pkgJson)"})
-    [[ "$#options" = 0 ]] && return
-
-    # Describe the options for autocompletion
-    _describe 'values' options
-    return
-  fi
-
-  # Handle `npm uninstall <dependency>` command
-  if [[ "$words[2]" == "uninstall" ]]; then
-    # Get the dependencies
-    local -a options=(${(f)"$(__znsaGetDependencies $pkgJson)"})
-    [[ "$#options" = 0 ]] && return
-
-    # Describe the options for autocompletion
-    _describe 'values' options
-    return
-  fi
-}
-
-alias nr="npm run"
-compdef __znsaYarnRunCompletion yarn
-compdef __znsaYarnRunCompletion nr
 compdef __znsaYarnRunCompletion pnpm
-compdef __znsaNpmRunCompletion npm
+compdef __znsaYarnRunCompletion yarn
 compdef __znsaNpmRunCompletion bun
